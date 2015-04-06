@@ -1,6 +1,9 @@
 # Squarenarus
 DayZ-based loot-eating sim.
 
+#### Clarification
+This is "Squarenarus" not Chernarus+. This is not based on actual gameplay. The simulation assumes players are dumb drones that make a bee-line for their goal destination. Also, there's no where where loot collects, like towns with lots of buildings. Loot spawns randomly across the entire square.
+
 # Description
 
 Light green circles are "goal" areas where the blue "players" randomly choose to head towards when they spawn on the coast (bottom and right edges of the image.
