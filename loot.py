@@ -6,18 +6,21 @@ from multiprocessing import Process
 
 STARTING_HUNGER=.5
 EXPENSE = STARTING_HUNGER/(60.0*3.0) #starve in one half hour
-EATING = EXPENSE*4 #eating adds 10
+EATING = EXPENSE*20 #eating adds 10
 RADIUS = 50.0
 MOVEMENT = 3.0 #SCOTLAND FOREVER
 SEARCH = 6.0
 PERSIST = (60*60*2)
-INTERVAL = 60*60
-SIM_TIME = 60*60*24*7
+INTERVAL = 10
+SIM_TIME = 60*60*8
 
 DESC = "%f-%f-%f-%d-%d-%d_"%(STARTING_HUNGER, EXPENSE, EATING,
 							RADIUS, MOVEMENT, PERSIST)
 
 graves = []
+
+death_log = open("deaths.csv", "w")
+death_log.write(",".join(["Player","Dist to target", "Dist travelled"])+"\n")
 
 # font = ImageFont.load("arial.pil")
 
@@ -27,10 +30,21 @@ def bmp_to_png(fr, to):
 	shutil.move(to,"./frames/"+to)
 	return
 
+def rand_rad(rad):
+	x = random.uniform(-rad,rad)
+	y = (rad**2.0-x**2.0)**.5
+	
+	y = random.uniform(-y,y)
+	
+	# flip = random.randint(0, 1)
+	# if flip == 1:
+		# y = y*-1.0
+	return x,y
+
 def draw_map(m, label = None, ts = ""):
 	global graves
 	global font
-	im = Image.new("RGB", (1100, 1100), "#009933")
+	im = Image.new("RGB", (1400, 1400), "#009933")
 	draw = ImageDraw.Draw(im)
 	
 	# draw.text((10,10), ts, fill = "white", font=font)
@@ -45,7 +59,8 @@ def draw_map(m, label = None, ts = ""):
 		
 	for p in m.players:
 		x,y = (int(p.loc.x)-1, int(p.loc.y)-1)
-		draw.ellipse((x-5, y-5, x+5, y+5), fill = 'blue')
+		rad = int(p.hunger*5.0)+1
+		draw.ellipse((x-rad, y-rad, x+rad, y+rad), fill = 'blue')
 		
 	for l in m.loot:
 		x,y = (int(l.x)-1, int(l.y)-1)
@@ -95,21 +110,59 @@ class game_map(object):
 		self.y_lim = y_lim
 		self.loot = []
 		self.players = []
-		self.targets = [location(100, 100),
-						location(250, 150),
-						location(800, 100),
-						location(100, 500),
-						location(50, 50)]
+		self.targets = [location(340, 230),
+						location(480, 520),
+						location(380, 640),
+						location(590, 510),
+						location(300, 740),
+						location(260, 1000),
+						location(180, 1310),
+						location(360, 1290),
+						location(450, 1290),
+						location(570, 1280),
+						location(610, 1210),
+						location(650, 1180),
+						location(670, 1280),
+						location(1030, 1320),
+						location(1190, 1180),
+						location(1340, 900),
+						location(1230, 570),
+						location(1110, 300),
+						location(1210, 270),
+						location(1390, 200),
+						location(1170, 90),
+						location(780, 260),
+						location(520, 670),
+						location(610, 760),
+						location(700, 760),
+						location(950, 650),
+						location(1070, 730),
+						location(440, 1070),
+						location(440, 890),
+						location(470, 850),
+						location(580, 1060),
+						location(1010, 1000),
+						location(760, 1020)]
 		
 	def random(self):
 		x = random.uniform(0,self.x_lim)
 		y = random.uniform(0,self.y_lim)
 		return location(x,y)
 		
+	def isin(self, loc):
+		return loc.x<=self.x_lim and \
+				loc.x>=0 and \
+				loc.y>=0 and \
+				loc.y<=self.y_lim
+		
 	def spawn_one_loot(self, cause = None):
-		new = self.random()
-		while cause and cause.loc-new < RADIUS:
-			new = self.random()
+		rad = rand_rad(100.0)
+		town = random.choice(self.targets)
+		new = location(town.x+rad[0], town.y+rad[1])
+		while cause and cause.loc-new < RADIUS and self.isin(new):
+			rad = rand_rad(100.0)
+			town = random.choice(self.targets)
+			new = location(town.x+rad[0], town.y+rad[1])
 		self.loot += [loot(new.x, new.y, self)]
 		
 	def spawn_loot(self, ct):
@@ -152,7 +205,9 @@ class game_map(object):
 		
 	def kill(self, player):
 		global graves
+		global death_log
 		graves += [player.loc]
+		death_log.write(",".join([str(id(player)),str(player.loc-player.target), str(player.loc-player.start)])+"\n")
 		self.players.remove(player)
 		self.spawn_one_player()
 		
@@ -163,6 +218,7 @@ class game_map(object):
 class player(object):
 	def __init__(self, map, start = location(0,0)):
 		self.loc=start
+		self.start = location(start.x,start.y)
 		self.hunger=STARTING_HUNGER
 		self.inv = []
 		self.capacity = 5
@@ -175,6 +231,8 @@ class player(object):
 		return False
 		
 	def move(self, at):
+		if self.loc-self.target < MOVEMENT:
+			self.target = random.choice(self.map.targets)
 		ratio = MOVEMENT / (self.loc-at)
 		rr = self.loc.riserun(at)
 		self.loc.y += rr[0]*ratio
@@ -210,9 +268,9 @@ class player(object):
 	
 def main():
 	global graves
-	m = game_map(1100, 1100)
+	m = game_map(1400, 1400)
 	m.spawn_players(30)
-	m.spawn_loot(2000)
+	m.spawn_loot(1000)
 	
 	
 	for _ in xrange(SIM_TIME):
